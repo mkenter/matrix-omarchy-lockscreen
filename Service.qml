@@ -11,10 +11,7 @@ Item {
   property var shell: null
   property string omarchyPath: ""
 
-  readonly property string home: Quickshell.env("HOME")
-  readonly property string stateHome: home + "/.local/state"
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
-  readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
 
   property bool lockRequested: false
   property bool pendingSessionLock: false
@@ -27,8 +24,6 @@ Item {
   property string pendingPassword: ""
   property string failureMessage: ""
   property int failedAttempts: 0
-  property string backgroundPath: ""
-  property int backgroundVersion: 0
   property string lastEvent: "init"
   property string lastEventAt: ""
   property bool strandedLock: false
@@ -99,10 +94,6 @@ Item {
     beginLock()
   }
 
-  function refreshBackground() {
-    if (!readlinkProc.running) readlinkProc.running = true
-  }
-
   function refreshFingerprintStatus() {
     if (!fingerprintCheckProc.running) fingerprintCheckProc.running = true
   }
@@ -137,10 +128,7 @@ Item {
     logEvent("lock-requested")
     queueSessionLock()
 
-    Qt.callLater(function() {
-      root.refreshBackground()
-      root.refreshFingerprintStatus()
-    })
+    Qt.callLater(root.refreshFingerprintStatus)
 
     return true
   }
@@ -268,14 +256,9 @@ Item {
       LockView {
         id: lockView
         anchors.fill: parent
-        backgroundPath: root.backgroundPath
-        backgroundVersion: root.backgroundVersion
-        fingerprintConfigured: root.fingerprintConfigured
         authenticatingPassword: root.authenticatingPassword
         failureMessage: root.failureMessage
-        failedAttempts: root.failedAttempts
         inputEnabled: root.lockRequested
-        loadBackground: root.locked
         passwordText: root.enteredPassword
         onPasswordTextEdited: function(password) { root.enteredPassword = password }
         onSubmitPassword: function(password) { root.submitPassword(password) }
@@ -298,14 +281,9 @@ Item {
 
     LockView {
       anchors.fill: parent
-      backgroundPath: root.backgroundPath
-      backgroundVersion: root.backgroundVersion
-      fingerprintConfigured: root.fingerprintConfigured
       authenticatingPassword: false
       failureMessage: ""
-      failedAttempts: 0
       inputEnabled: false
-      loadBackground: root.previewVisible
       passwordText: ""
     }
 
@@ -360,20 +338,6 @@ Item {
     onTriggered: root.startFingerprint()
   }
 
-  Process {
-    id: readlinkProc
-    command: ["readlink", "-f", root.currentBackgroundLink]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var next = String(text || "").trim()
-        if (next !== root.backgroundPath) {
-          root.backgroundPath = next
-          root.backgroundVersion += 1
-        }
-      }
-    }
-  }
 
   Process {
     id: fingerprintCheckProc
@@ -502,7 +466,6 @@ Item {
   }
 
   Component.onCompleted: {
-    refreshBackground()
     refreshFingerprintStatus()
     checkStrandedLock()
   }

@@ -4,14 +4,9 @@ import QtQuick.Effects
 Item {
   id: root
 
-  property string backgroundPath: ""
-  property int backgroundVersion: 0
-  property bool fingerprintConfigured: false
   property bool authenticatingPassword: false
   property string failureMessage: ""
-  property int failedAttempts: 0
   property bool inputEnabled: true
-  property bool loadBackground: true
   property string passwordText: ""
   property bool syncingPasswordText: false
   property bool showPrompt: false
@@ -21,47 +16,13 @@ Item {
   readonly property int terminalFontSize: 28
   readonly property int terminalLetterSpacing: 2
 
-  readonly property string placeholderText: "Enter Password"
-  readonly property int fieldWidth: 381
-  readonly property int fieldHeight: 67
-  readonly property int outlineThickness: 3
-  readonly property int fieldFontSize: Math.round(Style.font.heading * 1.125)
-  readonly property int passwordDotFontSize: Math.round(Style.font.heading * 1.33)
-  readonly property int passwordDotLetterSpacing: Math.round(Style.font.heading * 0.19)
-  // Space to keep clear on each side of the field for the fingerprint icon
-  // (icon width plus a gap) so the centered dots never run under it.
-  readonly property real fingerprintReserve: fingerprintConfigured ? Math.round(fingerprintIcon.implicitWidth + 12) : 0
-  // Shrink the dots to fit once the password outgrows the field, so every
-  // keystroke stays visible — otherwise long passwords clip with no feedback.
-  readonly property real passwordDotScale: dotMetrics.advanceWidth > 0
-    ? Math.min(1, (passwordInput.width - 4) / dotMetrics.advanceWidth)
-    : 1
-  readonly property bool showPasswordCursor: inputEnabled && !authenticatingPassword && failureMessage.length === 0
-  readonly property bool errorState: failureMessage.length > 0
-  readonly property var inputBorderSpec: errorState
-    ? Border.surfaceSpec("lock", "border-error", Color.lock.borderError, root.outlineThickness, "border-alpha")
-    : Border.surfaceSpec("lock", "border-active", Color.lock.borderActive, root.outlineThickness, "border-alpha")
-
   signal submitPassword(string password)
   signal passwordTextEdited(string password)
   signal clearFailureRequested()
   signal wakeRequested()
 
-  // Cache-busts the lock background by appending `?v=`. Adding a query
-  // string keeps Image's loader happy while forcing it to reload when the
-  // user picks a new background mid-session.
-  function fileUrl(path) {
-    if (!path) return ""
-    var encoded = String(path).split("/").map(encodeURIComponent).join("/")
-    return "file://" + encoded + "?v=" + backgroundVersion
-  }
-
   function forcePasswordFocus() {
     passwordInput.forceActiveFocus()
-  }
-
-  function clearPassword() {
-    passwordTextEdited("")
   }
 
   function appendTerminalLine(line) {
@@ -128,12 +89,9 @@ Item {
     forcePasswordFocus()
   }
 
-  // Measures the masked password at full size; passwordDotScale compares this
-  // against the field width to decide how far the dots must shrink to fit.
-
   Rectangle {
     anchors.fill: parent
-    color: Color.background
+    color: "#000000"
 
     Item {
       anchors.fill: parent
