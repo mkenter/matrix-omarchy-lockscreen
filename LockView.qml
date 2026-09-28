@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Effects
-import qs.Commons
-import qs.Ui
 
 Item {
   id: root
@@ -132,28 +130,27 @@ Item {
 
   // Measures the masked password at full size; passwordDotScale compares this
   // against the field width to decide how far the dots must shrink to fit.
-  TextMetrics {
-    id: dotMetrics
-    font.family: Style.font.family
-    font.pixelSize: root.passwordDotFontSize
-    font.letterSpacing: root.passwordDotLetterSpacing
-    text: "●".repeat(passwordInput.text.length)
-  }
 
   Rectangle {
     anchors.fill: parent
     color: Color.background
 
-    MatrixRain {
-      id: matrixRain
+    Item {
       anchors.fill: parent
+      clip: true
 
-      layer.enabled: true
+      MatrixRain {
+        id: matrixRain
+        anchors.fill: parent
+        anchors.margins: -32
 
-      layer.effect: MultiEffect {
-        blurEnabled: true
-        blur: 0.35
-        blurMax: 32
+        layer.enabled: true
+
+        layer.effect: MultiEffect {
+          blurEnabled: true
+          blur: 0.35
+          blurMax: 32
+        }
       }
     }
 
@@ -322,114 +319,55 @@ Item {
       onPositionChanged: root.wakeRequested()
     }
 
-    BorderSurface {
-      id: inputField
-      width: root.fieldWidth
-      height: root.fieldHeight
-      anchors.centerIn: parent
-      color: Color.lock.background
-      borderSpec: root.inputBorderSpec
-      radius: Style.cornerRadius
-      clip: true
-
+    TextInput {
+      id: passwordInput
+      anchors.fill: parent
       opacity: 0
 
-      TextInput {
-        id: passwordInput
-        anchors.fill: parent
-        anchors.topMargin: inputField.borderTop
-        // Reserve the fingerprint icon's width on both sides so the centered
-        // dots stay symmetric and never slide under the icon as they grow.
-        anchors.rightMargin: inputField.borderRight + 18 + root.fingerprintReserve
-        anchors.bottomMargin: inputField.borderBottom
-        anchors.leftMargin: inputField.borderLeft + 18 + root.fingerprintReserve
-        verticalAlignment: TextInput.AlignVCenter
-        horizontalAlignment: TextInput.AlignHCenter
-        activeFocusOnPress: true
-        clip: true
-        enabled: root.inputEnabled && !root.authenticatingPassword
-        readOnly: root.authenticatingPassword
-        echoMode: TextInput.Password
-        passwordCharacter: "\u25CF"
-        passwordMaskDelay: 0
-        color: Color.lock.text
-        selectionColor: Color.lock.selection
-        selectedTextColor: Color.lock.text
-        font.family: Style.font.family
-        font.pixelSize: text.length > 0 ? Math.max(1, Math.floor(root.passwordDotFontSize * root.passwordDotScale)) : root.fieldFontSize
-        font.letterSpacing: text.length > 0 ? root.passwordDotLetterSpacing * root.passwordDotScale : 0
-        cursorVisible: activeFocus && root.showPasswordCursor && text.length > 0
-        cursorDelegate: Rectangle {
-          width: 2
-          color: Color.lock.text
-          visible: passwordInput.cursorVisible
-        }
+      activeFocusOnPress: true
+      enabled: root.inputEnabled && !root.authenticatingPassword
+      readOnly: root.authenticatingPassword
+      echoMode: TextInput.Password
 
-        onTextChanged: {
-          if (!root.syncingPasswordText) root.passwordTextEdited(text)
-          if (text.length > 0) {
-            root.showPrompt = true
-            promptHideTimer.restart()
-            root.wakeRequested()
-          }
-          if (text.length > 0 && root.failureMessage.length > 0) root.clearFailureRequested()
-        }
+      onTextChanged: {
+        if (!root.syncingPasswordText)
+          root.passwordTextEdited(text)
 
-        onAccepted: {
-          var submitted = root.passwordText
-
-          if (submitted.length > 0) {
-            root.appendTerminalLine("> " + "●".repeat(submitted.length))
-            root.appendTerminalLine("CHECKING...")
-          }
-
-          root.passwordTextEdited("")
-
-          if (submitted.length > 0)
-            root.submitPassword(submitted)
-        }
-
-        Keys.onPressed: function(event) {
+        if (text.length > 0) {
           root.showPrompt = true
+          promptHideTimer.restart()
           root.wakeRequested()
-
-          if (event.key === Qt.Key_Escape || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_U)) {
-            root.passwordTextEdited("")
-            event.accepted = true
-          }
         }
+
+        if (text.length > 0 && root.failureMessage.length > 0)
+          root.clearFailureRequested()
       }
 
-      Text {
-        textFormat: Text.PlainText
-        anchors.fill: passwordInput
-        text: root.authenticatingPassword ? "Checking…" : (root.failureMessage.length > 0 ? root.failureMessage : root.placeholderText)
-        visible: passwordInput.text.length === 0
-        color: root.authenticatingPassword ? Color.lock.text : (root.failureMessage.length > 0 ? Color.lock.textError : Color.lock.placeholder)
-        font.family: Style.font.family
-        font.pixelSize: root.fieldFontSize
-        font.italic: !root.authenticatingPassword && root.failureMessage.length > 0
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+      onAccepted: {
+        var submitted = root.passwordText
+
+        if (submitted.length > 0) {
+          root.appendTerminalLine("> " + "●".repeat(submitted.length))
+          root.appendTerminalLine("CHECKING...")
+        }
+
+        root.passwordTextEdited("")
+
+        if (submitted.length > 0)
+          root.submitPassword(submitted)
       }
 
-      // Fingerprint hint pinned inside the field's right edge when a sensor is
-      // enrolled, so the user knows they can touch to unlock instead of typing.
-      // Matches hyprlock, which draws its fingerprint icon in the same spot.
-      Text {
-        id: fingerprintIcon
-        objectName: "fingerprintIndicator"
-        anchors.right: parent.right
-        anchors.rightMargin: inputField.borderRight + 18
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.fingerprintConfigured
-        text: "󰈷"
-        color: Color.lock.placeholder
-        font.family: Style.font.family
-        font.pixelSize: Math.round(root.fieldFontSize * 1.1)
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
+      Keys.onPressed: function(event) {
+        root.showPrompt = true
+        root.wakeRequested()
+
+        if (
+          event.key === Qt.Key_Escape ||
+          ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_U)
+        ) {
+          root.passwordTextEdited("")
+          event.accepted = true
+        }
       }
     }
   }
