@@ -17,9 +17,11 @@ Item {
   property string passwordText: ""
   property bool syncingPasswordText: false
   property bool showPrompt: false
+  property var terminalLines: []
 
-  readonly property int terminalPadding: 48
-  readonly property int terminalFontSize: 42
+  readonly property int terminalPadding: 56
+  readonly property int terminalFontSize: 28
+  readonly property int terminalLetterSpacing: 2
 
   readonly property string placeholderText: "Enter Password"
   readonly property int fieldWidth: 381
@@ -64,6 +66,27 @@ Item {
     passwordTextEdited("")
   }
 
+  function appendTerminalLine(line) {
+    var lines = terminalLines.slice()
+    lines.push(line)
+
+    // Keep enough history for several failed attempts without
+    // eventually running off the bottom of the screen.
+    if (lines.length > 16)
+      lines = lines.slice(lines.length - 16)
+
+    terminalLines = lines
+  }
+
+  function terminalDisplayText() {
+    var lines = terminalLines.slice()
+
+    if (!authenticatingPassword)
+      lines.push("> " + "●".repeat(passwordText.length))
+
+    return lines.join("\n")
+  }
+
   function syncPasswordText() {
     if (passwordInput.text === passwordText) return
     syncingPasswordText = true
@@ -75,6 +98,7 @@ Item {
 
   onFailureMessageChanged: {
     if (failureMessage.length > 0) {
+      appendTerminalLine(failureMessage.toUpperCase())
       showPrompt = true
       promptHideTimer.stop()
     }
@@ -95,6 +119,7 @@ Item {
     onTriggered: {
       if (!root.authenticatingPassword && root.failureMessage.length === 0) {
         root.showPrompt = false
+        root.terminalLines = []
       }
     }
   }
@@ -159,7 +184,30 @@ Item {
 
       Rectangle {
         anchors.fill: parent
-        color: "#000000"
+        color: "#010502"
+      }
+
+      // Subtle horizontal CRT scanlines.
+      Canvas {
+        anchors.fill: parent
+        opacity: 0.14
+
+        onPaint: {
+          var ctx = getContext("2d")
+          ctx.clearRect(0, 0, width, height)
+          ctx.fillStyle = "#000000"
+
+          for (var y = 0; y < height; y += 4)
+            ctx.fillRect(0, y, width, 1)
+        }
+
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+      }
+
+      Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(45 / 255, 110 / 255, 55 / 255, 0.045)
       }
 
       Item {
@@ -172,22 +220,42 @@ Item {
         width: terminalText.implicitWidth
         height: terminalText.implicitHeight
 
+        // Wide phosphor bloom.
         Text {
-          x: 2
-          y: 2
+          x: 0
+          y: 0
           text: terminalText.text
           textFormat: Text.PlainText
-
-          // QML color, not CSS rgba().
-          color: Qt.rgba(70 / 255, 1.0, 105 / 255, 0.30)
+          color: Qt.rgba(75 / 255, 195 / 255, 90 / 255, 0.34)
 
           font.family: "monospace"
           font.pixelSize: root.terminalFontSize
+          font.letterSpacing: root.terminalLetterSpacing
 
           layer.enabled: true
           layer.effect: MultiEffect {
             blurEnabled: true
-            blur: 0.45
+            blur: 0.72
+            blurMax: 48
+          }
+        }
+
+        // Tighter inner glow.
+        Text {
+          x: 0
+          y: 0
+          text: terminalText.text
+          textFormat: Text.PlainText
+          color: Qt.rgba(115 / 255, 225 / 255, 125 / 255, 0.42)
+
+          font.family: "monospace"
+          font.pixelSize: root.terminalFontSize
+          font.letterSpacing: root.terminalLetterSpacing
+
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            blurEnabled: true
+            blur: 0.30
             blurMax: 24
           }
         }
@@ -196,26 +264,20 @@ Item {
           id: terminalText
           textFormat: Text.PlainText
 
-          text: root.authenticatingPassword
-            ? "> CHECKING..."
-            : (
-                root.failureMessage.length > 0
-                ? "> " + root.failureMessage
-                : "> "
-                  + "●".repeat(root.passwordText.length)
-                  + (
-                      root.showPasswordCursor
-                      ? " ▌"
-                      : ""
-                    )
-              )
+          text: root.terminalDisplayText()
 
-          color: root.failureMessage.length > 0
-            ? "#ff8a8a"
-            : "#bff5c9"
+          color: "#8fc99a"
 
           font.family: "monospace"
           font.pixelSize: root.terminalFontSize
+          font.letterSpacing: root.terminalLetterSpacing
+
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            blurEnabled: true
+            blur: 0.06
+            blurMax: 8
+          }
         }
       }
     }
@@ -315,8 +377,16 @@ Item {
 
         onAccepted: {
           var submitted = root.passwordText
+
+          if (submitted.length > 0) {
+            root.appendTerminalLine("> " + "●".repeat(submitted.length))
+            root.appendTerminalLine("CHECKING...")
+          }
+
           root.passwordTextEdited("")
-          if (submitted.length > 0) root.submitPassword(submitted)
+
+          if (submitted.length > 0)
+            root.submitPassword(submitted)
         }
 
         Keys.onPressed: function(event) {
