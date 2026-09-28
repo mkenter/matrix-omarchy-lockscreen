@@ -18,6 +18,9 @@ Item {
   property bool syncingPasswordText: false
   property bool showPrompt: false
 
+  readonly property int terminalPadding: 48
+  readonly property int terminalFontSize: 42
+
   readonly property string placeholderText: "Enter Password"
   readonly property int fieldWidth: 381
   readonly property int fieldHeight: 67
@@ -69,6 +72,14 @@ Item {
   }
 
   onPasswordTextChanged: syncPasswordText()
+
+  onFailureMessageChanged: {
+    if (failureMessage.length > 0) {
+      showPrompt = true
+      promptHideTimer.stop()
+    }
+  }
+
   onInputEnabledChanged: {
     if (inputEnabled) Qt.callLater(forcePasswordFocus)
   }
@@ -121,6 +132,124 @@ Item {
       }
     }
 
+    Item {
+      id: crtScreen
+      anchors.fill: parent
+      z: 20
+
+      property real progress: root.showPrompt ? 1.0 : 0.0
+
+      opacity: progress > 0.001 ? 1 : 0
+
+      Behavior on progress {
+        NumberAnimation {
+          duration: root.showPrompt ? 190 : 145
+          easing.type: root.showPrompt
+            ? Easing.OutCubic
+            : Easing.InCubic
+        }
+      }
+
+      transform: Scale {
+        origin.x: crtScreen.width / 2
+        origin.y: crtScreen.height / 2
+        xScale: 1.0
+        yScale: Math.max(0.003, crtScreen.progress)
+      }
+
+      Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+      }
+
+      Item {
+        id: terminalPrompt
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.leftMargin: root.terminalPadding
+        anchors.topMargin: root.terminalPadding
+
+        width: terminalText.implicitWidth
+        height: terminalText.implicitHeight
+
+        Text {
+          x: 2
+          y: 2
+          text: terminalText.text
+          textFormat: Text.PlainText
+
+          // QML color, not CSS rgba().
+          color: Qt.rgba(70 / 255, 1.0, 105 / 255, 0.30)
+
+          font.family: "monospace"
+          font.pixelSize: root.terminalFontSize
+
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            blurEnabled: true
+            blur: 0.45
+            blurMax: 24
+          }
+        }
+
+        Text {
+          id: terminalText
+          textFormat: Text.PlainText
+
+          text: root.authenticatingPassword
+            ? "> CHECKING..."
+            : (
+                root.failureMessage.length > 0
+                ? "> " + root.failureMessage
+                : "> "
+                  + "●".repeat(root.passwordText.length)
+                  + (
+                      root.showPasswordCursor
+                      ? " ▌"
+                      : ""
+                    )
+              )
+
+          color: root.failureMessage.length > 0
+            ? "#ff8a8a"
+            : "#bff5c9"
+
+          font.family: "monospace"
+          font.pixelSize: root.terminalFontSize
+        }
+      }
+    }
+
+    Rectangle {
+      id: crtLine
+      z: 21
+
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+
+      height: 3
+      color: "#d8ffe0"
+
+      opacity: {
+        var p = crtScreen.progress
+
+        if (p <= 0 || p >= 0.24)
+          return 0
+
+        var distance = Math.abs(p - 0.08)
+        return Math.max(0, 1.0 - distance / 0.16)
+      }
+
+      layer.enabled: true
+
+      layer.effect: MultiEffect {
+        blurEnabled: true
+        blur: 0.8
+        blurMax: 64
+      }
+    }
+
     MouseArea {
       anchors.fill: parent
       hoverEnabled: true
@@ -140,11 +269,8 @@ Item {
       borderSpec: root.inputBorderSpec
       radius: Style.cornerRadius
       clip: true
-      opacity: root.showPrompt ? 1 : 0
 
-      Behavior on opacity {
-        NumberAnimation { duration: 150 }
-      }
+      opacity: 0
 
       TextInput {
         id: passwordInput
