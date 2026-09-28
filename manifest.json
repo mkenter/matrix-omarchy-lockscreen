@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "mkenter.lock",
-  "name": "Matrix style lock screen",
+  "id": "matrix.lock",
+  "name": "Matrix Lock Screen",
   "version": "1.0.0",
   "author": "mkenter",
-  "description": "Quickshell session lock with separate password and fingerprint PAM flows.",
+  "description": "Matrix-inspired lock screen with digital rain and CRT terminal effects.",
   "omarchy": {
     "capabilities": [
       "authentication"
