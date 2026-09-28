@@ -4,11 +4,11 @@ Canvas {
   id: root
   anchors.fill: parent
 
-  property int minSize: 12
-  property int maxSize: 48
+  property int glyphSize: 28
+  property int columnWidth: 28
 
-  property int minLength: 18
-  property int maxLength: 48
+  property int minLength: 12
+  property int maxLength: 42
 
   // Roughly half of ordinary glyphs mutate.
   property real mutableChance: 0.50
@@ -47,46 +47,28 @@ Canvas {
     }
   }
 
-  function makeStream(seedVisible) {
-    // Bias toward distant/smaller streams, with occasional foreground ones.
-    var depth = Math.pow(Math.random(), 1.65)
-
-    var size =
-      minSize + depth * (maxSize - minSize)
-
+  function makeStream(column, seedVisible) {
     var length =
       randomInt(minLength, maxLength)
 
-    // Far = dimmer.
-    // Close = brighter.
-    var opacity =
-      0.22 + depth * 0.78
-
-    // Advance in discrete character rows.
-    //
-    // Far streams tend to advance slowly.
-    // Near streams tend to advance faster.
-    // Randomness keeps streams at similar depth from synchronising.
-    var stepEvery =
-      Math.round(14 - depth * 9 + Math.random() * 5)
-
-    stepEvery = Math.max(2, stepEvery)
+    // Streams occupy fixed character columns and advance at independent rates.
+    var stepEvery = randomInt(1, 9)
 
     var stream = {
-      x: Math.random() * Math.max(1, width - size),
+      column: column,
+      x: column * columnWidth,
 
-      size: size,
+      size: glyphSize,
       length: length,
-      opacity: opacity,
 
       stepEvery: stepEvery,
       stepCounter: randomInt(0, stepEvery),
 
       cells: [],
-      nextY: -size,
+      nextY: -glyphSize,
 
       // Makes recycled streams enter at different times.
-      delay: randomInt(0, 90)
+      delay: randomInt(0, 120)
     }
 
     if (seedVisible) {
@@ -97,18 +79,18 @@ Canvas {
       var visibleCells =
         Math.min(
           length,
-          Math.max(1, Math.floor(headY / size) + 1)
+          Math.max(1, Math.floor(headY / glyphSize) + 1)
         )
 
       var firstY =
-        headY - (visibleCells - 1) * size
+        headY - (visibleCells - 1) * glyphSize
 
       for (var i = 0; i < visibleCells; ++i) {
-        var y = firstY + i * size
+        var y = firstY + i * glyphSize
         stream.cells.push(makeCell(y, i === visibleCells - 1))
       }
 
-      stream.nextY = headY + size
+      stream.nextY = headY + glyphSize
       stream.delay = randomInt(0, 25)
     }
 
@@ -118,22 +100,19 @@ Canvas {
   function initialise() {
     var next = []
 
-    // Deliberately dense.
-    // 1920px -> ~240 streams
-    // 2560px -> ~320 streams
-    // 3440px -> ~430 streams
-    var count = Math.round(width / 8)
-    count = Math.max(220, Math.min(520, count))
+    var columnCount =
+      Math.max(1, Math.floor(width / columnWidth))
 
-    for (var i = 0; i < count; ++i)
-      next.push(makeStream(true))
+    // Exactly one stream per column.
+    for (var i = 0; i < columnCount; ++i)
+      next.push(makeStream(i, true))
 
     streams = next
     requestPaint()
   }
 
   function recycle(index) {
-    streams[index] = makeStream(false)
+    streams[index] = makeStream(streams[index].column, false)
   }
 
   function advanceStream(stream) {
@@ -231,49 +210,18 @@ Canvas {
         )
           continue
 
-        // 0 = oldest/tail
-        // 1 = newest/head
-        var position =
-          cellCount <= 1
-            ? 1
-            : i / (cellCount - 1)
-
         if (i === cellCount - 1) {
-          // Bright white-green leading character.
-          ctx.fillStyle =
-            "rgba(225,255,230," +
-            stream.opacity +
-            ")"
+          // Newly-added leading glyph.
+          ctx.fillStyle = "#e5ffe8"
         } else if (i >= cellCount - 3) {
-          // Bright green immediately behind the head.
-          var nearHeadAlpha =
-            Math.min(
-              1.0,
-              stream.opacity * 0.92
-            )
-
-          ctx.fillStyle =
-            "rgba(90,255,120," +
-            nearHeadAlpha +
-            ")"
+          // A couple of fresh characters remain brighter.
+          ctx.fillStyle = "#79ff94"
+        } else if (i >= cellCount - 8) {
+          // Recent body: still vivid, but clearly behind the head.
+          ctx.fillStyle = "#18c94d"
         } else {
-          // Nonlinear fade toward the old end of the stream.
-          //
-          // Keeping the middle fairly visible and killing the very old
-          // glyphs quickly resembles the movie more than a linear gradient.
-          var fade =
-            Math.pow(position, 1.45)
-
-          var alpha =
-            Math.max(
-              0.015,
-              fade * stream.opacity
-            )
-
-          ctx.fillStyle =
-            "rgba(0,255,65," +
-            alpha +
-            ")"
+          // Older retained characters are darker.
+          ctx.fillStyle = "#0b7a2b"
         }
 
         ctx.fillText(

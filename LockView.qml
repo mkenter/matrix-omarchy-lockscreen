@@ -108,10 +108,18 @@ Item {
     anchors.fill: parent
     color: Color.background
 
-  MatrixRain {
-    id: matrixRain
-    anchors.fill: parent
-  }
+    MatrixRain {
+      id: matrixRain
+      anchors.fill: parent
+
+      layer.enabled: true
+
+      layer.effect: MultiEffect {
+        blurEnabled: true
+        blur: 0.35
+        blurMax: 32
+      }
+    }
 
     MouseArea {
       anchors.fill: parent

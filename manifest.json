@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "mkenter.lock",
-  "name": "My Lock Screen",
+  "name": "Matrix style lock screen",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "mkenter",
   "description": "Quickshell session lock with separate password and fingerprint PAM flows.",
   "omarchy": {
     "capabilities": [
