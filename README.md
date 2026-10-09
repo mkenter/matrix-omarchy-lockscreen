@@ -12,7 +12,10 @@ It replaces the stock lock-screen presentation with:
 
 ## Screenshot
 
-<!-- Add screenshot or GIF here -->
+<img width="3440" height="1440" alt="mpv-shot0001" src="https://github.com/user-attachments/assets/0c8ef380-f22d-460c-9580-73f538d3b08b" />
+
+<img width="3440" height="1440" alt="mpv-shot0002" src="https://github.com/user-attachments/assets/e5b93bb4-91f9-488e-a869-cf2d4b0c7923" />
+
 
 ## Installation
 
